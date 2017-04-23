@@ -1,0 +1,10 @@
+load_all_tweets = LOAD '/demonetization-tweets.csv' USING PigStorage(',');
+clean_tweets = FOREACH load_tweets GENERATE $0 as id,$1 as text;
+tokenization = foreach clean_tweets generate id,text, FLATTEN(TOKENIZE(text)) As word;
+dictionary = load '/AFINN.txt' using PigStorage('\t') AS(word:chararray,rating:int);
+join_word_rating_to_tweets = join tokenization by word left outer, dictionary by word using 'replicated';
+clean_tweets_with_rating = foreach join_word_rating_to_tweets generate tokens::id as id,tokens::text as text, dictionary::rating as rate;
+word_group = group clean_tweets_with_rating by (id,text);
+each_tweet_rating = foreach word_group generate group, AVG(rating.rate) as tweet_rating;	
+positive_tweets = filter each_tweet_rating by tweet_rating>=0;
+dump all_positive_tweets;
